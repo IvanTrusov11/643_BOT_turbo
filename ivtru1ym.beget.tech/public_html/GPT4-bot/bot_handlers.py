@@ -46,6 +46,7 @@ async def chat(message: types.Message, state: FSMContext, bot):
         'messages': chat_histories[chat_id]
     }
     response = requests.post('https://api.openai.com/v1/chat/completions', headers=headers, json=data)
+    logging.info(f"OpenAI Response: {response.text}")  # Добавьте эту строку для логирования ответа
 
     if response.status_code == 200:
         response_data = response.json()
@@ -53,6 +54,7 @@ async def chat(message: types.Message, state: FSMContext, bot):
         await message.answer(answer)
         chat_histories[chat_id].append({"role": "assistant", "content": answer})
     else:
+        logging.error(f"Ошибка запроса к OpenAI: {response.status_code}, ответ: {response.text}")  # Логируем ошибку
         await message.answer("Произошла ошибка при обработке вашего запроса.")
 
     await ChatState.waiting_for_message.set()
@@ -77,6 +79,7 @@ async def convert_ogg_to_mp3(ogg_data):
     return dest
 
 async def handle_voice_message(message: types.Message, bot: Bot):
+    logging.info("Получено голосовое сообщение")
     logging.info("Обработка голосового сообщения")
     try:
         file_id = message.voice.file_id
@@ -112,7 +115,7 @@ async def handle_voice_message(message: types.Message, bot: Bot):
         await message.reply(f"Произошла ошибка: {e}")
 
 def register_handlers(dp: Dispatcher, bot):
+    dp.register_message_handler(lambda msg: handle_voice_message(msg, bot), content_types=['voice'], state="*")
     dp.register_message_handler(lambda msg: start_command(msg, bot), commands=["start"], state="*")
     dp.register_message_handler(lambda msg, state: chat(msg, state, bot), state=ChatState.waiting_for_message)
     dp.register_message_handler(lambda msg, state: cancel_command(msg, state, bot), commands=["cancel"], state="*")
-    dp.register_message_handler(lambda msg: handle_voice_message(msg, bot), content_types=['voice'])
